@@ -173,6 +173,8 @@ class SessionListDrawer extends StatelessWidget {
     switch (status) {
       case SessionStatus.connecting:
         return Colors.amber;
+      case SessionStatus.reconnecting:
+        return Colors.orangeAccent;
       case SessionStatus.connected:
         return Colors.green;
       case SessionStatus.disconnected:

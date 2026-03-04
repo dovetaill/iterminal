@@ -73,6 +73,16 @@ class _TerminalPageState extends State<TerminalPage> {
       return;
     }
 
+    if (session.status == SessionStatus.reconnecting &&
+        session.waitingForNetwork) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Offline now. Session will auto-reconnect when network is back.'),
+        ),
+      );
+      return;
+    }
+
     final savedId = result.savedProfileId;
     if (savedId != null) {
       await widget.profiles.markProfileUsed(savedId);
@@ -89,6 +99,16 @@ class _TerminalPageState extends State<TerminalPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text('Connection failed: ${session.lastError ?? ''}')),
+      );
+      return;
+    }
+
+    if (session.status == SessionStatus.reconnecting &&
+        session.waitingForNetwork) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Offline now. Session will auto-reconnect when network is back.'),
+        ),
       );
       return;
     }
@@ -121,6 +141,26 @@ class _TerminalPageState extends State<TerminalPage> {
       profiles: widget.profiles,
       sessions: widget.sessions,
     );
+  }
+
+  Future<void> _reconnectActiveSession() async {
+    final session = widget.sessions.activeSession;
+    if (session == null) {
+      return;
+    }
+
+    final ok = await widget.sessions.reconnectSession(session.id);
+    if (!mounted) {
+      return;
+    }
+
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reconnect scheduled. Waiting for network or retry...'),
+        ),
+      );
+    }
   }
 
   void _toggleSearchBar({bool forceOpen = false}) {
@@ -405,6 +445,13 @@ class _TerminalPageState extends State<TerminalPage> {
                       ),
                     ),
                     IconButton(
+                      tooltip: 'Reconnect Active Session',
+                      onPressed: sessions.activeSession == null
+                          ? null
+                          : () => unawaited(_reconnectActiveSession()),
+                      icon: const Icon(Icons.refresh),
+                    ),
+                    IconButton(
                       tooltip: 'Search (Ctrl+F)',
                       onPressed: _toggleSearchBar,
                       icon: Icon(
@@ -421,6 +468,7 @@ class _TerminalPageState extends State<TerminalPage> {
                 body: Column(
                   children: [
                     _buildTabStrip(context),
+                    if (!sessions.isNetworkOnline) _buildOfflineBanner(context),
                     if (_showSearchBar) _buildSearchBar(),
                     Expanded(child: _buildBody()),
                     if (_showMobileQuickKeys)
@@ -518,6 +566,16 @@ class _TerminalPageState extends State<TerminalPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (session.status == SessionStatus.reconnecting) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            session.waitingForNetwork
+                                ? Icons.wifi_off
+                                : Icons.refresh,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ],
                         const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () => unawaited(
@@ -563,6 +621,33 @@ class _TerminalPageState extends State<TerminalPage> {
                 },
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfflineBanner(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Row(
+        children: [
+          Icon(
+            Icons.wifi_off,
+            size: 18,
+            color: Theme.of(context).colorScheme.onErrorContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Network unavailable. Reconnect will resume automatically when connectivity returns.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -648,7 +733,7 @@ class _TerminalPageState extends State<TerminalPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Stage 2 已支持本地加密连接档案、SFTP 浏览、片段管理与 Android 软键映射。',
+                      'Stage 2 已支持加密档案、SFTP、片段、Android 软键映射，以及断线重连/网络恢复续连。',
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -734,6 +819,8 @@ class _TerminalPageState extends State<TerminalPage> {
     switch (status) {
       case SessionStatus.connecting:
         return Colors.amber;
+      case SessionStatus.reconnecting:
+        return Colors.orangeAccent;
       case SessionStatus.connected:
         return Colors.greenAccent;
       case SessionStatus.disconnected:

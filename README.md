@@ -23,6 +23,8 @@
 - SFTP 浏览器：目录浏览、文件预览、将片段上传为远端文件
 - 片段管理：新增/编辑/删除/收藏片段，支持一键发送到终端
 - 软键盘映射（Android）：Ctrl/Alt/Fn、Esc/Tab、方向键、Home/End、PgUp/PgDn、F1-F12、常见组合键
+- 断线重连：会话异常断开后自动重连（指数退避 + 最大重试次数）
+- 网络切换体验：离线等待、网络恢复自动续连、手动重连入口
 
 ### 阶段 1 回溯优化
 - 主题/配色/字号持久化（`shared_preferences`）
@@ -36,6 +38,7 @@
 - `lib/state/settings_controller.dart`: 主题、终端配色、字体设置
 - `lib/state/profile_controller.dart`: 账户、保存连接、片段（加密 vault）
 - `lib/services/secure_vault.dart`: AES-GCM 加密仓库
+- `lib/services/network_monitor.dart`: 网络在线状态抽象（`connectivity_plus` 适配）
 - `lib/ui/sftp_sheet.dart`: SFTP 浏览面板
 - `lib/ui/mobile_quick_keys.dart`: Android 软键盘映射栏
 - `lib/ui/*.dart`: 页面与组件
@@ -69,7 +72,7 @@ flutter test
 
 ## 下一阶段建议
 
-- 增强连接：断线重连、网络切换、跳板机/ProxyJump
+- 增强连接：跳板机/ProxyJump、端口转发（本地/远端/动态）
 - 能力扩展：snippets、命令面板、宏/脚本插件
 - Windows 深水区：ConPTY 接入 cmd/pwsh/wsl（可由 Rust 模块承接）
 

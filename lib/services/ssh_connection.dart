@@ -66,6 +66,16 @@ class SshConnection implements SshConnectionAdapter {
     required OnError onError,
     OnTitleChange? onTitleChange,
   }) async {
+    _isClosed = false;
+    var doneReported = false;
+    void reportDone() {
+      if (_isClosed || doneReported) {
+        return;
+      }
+      doneReported = true;
+      onDone();
+    }
+
     try {
       final socket = await SSHSocket.connect(profile.host, profile.port)
           .timeout(const Duration(seconds: 15));
@@ -74,6 +84,7 @@ class SshConnection implements SshConnectionAdapter {
         username: profile.username,
         onPasswordRequest: () => profile.password,
         onVerifyHostKey: (_, __) => true,
+        keepAliveInterval: const Duration(seconds: 15),
       );
       await client.authenticated;
 
@@ -107,11 +118,18 @@ class SshConnection implements SshConnectionAdapter {
 
       unawaited(
         shell.done.then((_) {
-          if (!_isClosed) {
-            onDone();
-          }
+          reportDone();
         }).catchError((Object error, StackTrace stackTrace) {
           onError(error, stackTrace);
+        }),
+      );
+
+      unawaited(
+        client.done.then((_) {
+          reportDone();
+        }).catchError((Object error, StackTrace stackTrace) {
+          onError(error, stackTrace);
+          reportDone();
         }),
       );
     } catch (error, stackTrace) {

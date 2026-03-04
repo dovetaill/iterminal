@@ -5,6 +5,7 @@ import 'package:xterm/xterm.dart';
 
 enum SessionStatus {
   connecting,
+  reconnecting,
   connected,
   disconnected,
   error,
@@ -27,6 +28,10 @@ class TerminalSession {
   SessionStatus status;
   String? runtimeTitle;
   String? lastError;
+  bool hasEverConnected = false;
+  int reconnectAttempt = 0;
+  DateTime? nextReconnectAt;
+  bool waitingForNetwork = false;
   int searchHits = 0;
   int searchCursor = 0;
   static const int _maxOutputChars = 500000;
