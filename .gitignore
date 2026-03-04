@@ -1,0 +1,17 @@
+.dart_tool/
+.packages
+.pub/
+build/
+.idea/
+.vscode/
+*.iml
+*.lock
+.tooling/
+.home/
+.config/
+.pub-cache/
+.gitconfig-flutter
+windows/flutter/ephemeral/
+windows/flutter/generated_plugin_registrant.*
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
