@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:iterminal/models/ssh_profile.dart';
 import 'package:xterm/xterm.dart';
 
@@ -27,7 +29,9 @@ class TerminalSession {
   String? lastError;
   int searchHits = 0;
   int searchCursor = 0;
-  final StringBuffer outputBuffer = StringBuffer();
+  static const int _maxOutputChars = 500000;
+  final ListQueue<String> _outputChunks = ListQueue<String>();
+  int _outputSize = 0;
 
   String get title {
     final title = runtimeTitle?.trim();
@@ -38,8 +42,18 @@ class TerminalSession {
   }
 
   void appendOutput(String text) {
-    outputBuffer.write(text);
+    if (text.isEmpty) {
+      return;
+    }
+
+    _outputChunks.addLast(text);
+    _outputSize += text.length;
+
+    while (_outputSize > _maxOutputChars && _outputChunks.isNotEmpty) {
+      final removed = _outputChunks.removeFirst();
+      _outputSize -= removed.length;
+    }
   }
 
-  String get outputText => outputBuffer.toString();
+  String get outputText => _outputChunks.join();
 }

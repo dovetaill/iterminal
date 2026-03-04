@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iterminal/state/profile_controller.dart';
 import 'package:iterminal/state/session_controller.dart';
 import 'package:iterminal/state/settings_controller.dart';
 import 'package:iterminal/ui/terminal_page.dart';
@@ -8,15 +9,21 @@ class ITerminalApp extends StatelessWidget {
     super.key,
     required this.settingsController,
     required this.sessionController,
+    required this.profileController,
   });
 
   final SettingsController settingsController;
   final SessionController sessionController;
+  final ProfileController profileController;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([settingsController, sessionController]),
+      animation: Listenable.merge([
+        settingsController,
+        sessionController,
+        profileController,
+      ]),
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -27,6 +34,7 @@ class ITerminalApp extends StatelessWidget {
           home: TerminalPage(
             sessions: sessionController,
             settings: settingsController,
+            profiles: profileController,
           ),
         );
       },

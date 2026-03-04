@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:iterminal/services/settings_persistence.dart';
 import 'package:iterminal/state/settings_controller.dart';
 
 void main() {
@@ -28,6 +29,23 @@ void main() {
 
       controller.setFontSize(3);
       expect(controller.fontSize, 11);
+    });
+
+    test('loads and saves from persistence', () async {
+      final persistence = InMemorySettingsPersistence();
+      final writer = SettingsController(persistence: persistence);
+      await writer.load();
+      writer.setThemeMode(ThemeMode.light);
+      writer.setPalette(TerminalPalette.matrix);
+      writer.setFontSize(18);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final reader = SettingsController(persistence: persistence);
+      await reader.load();
+
+      expect(reader.themeMode, ThemeMode.light);
+      expect(reader.palette, TerminalPalette.matrix);
+      expect(reader.fontSize, 18);
     });
   });
 }

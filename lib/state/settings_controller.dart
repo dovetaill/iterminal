@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:iterminal/services/settings_persistence.dart';
 import 'package:xterm/xterm.dart';
 
 enum TerminalPalette {
@@ -8,13 +11,36 @@ enum TerminalPalette {
 }
 
 class SettingsController extends ChangeNotifier {
+  SettingsController({SettingsPersistence? persistence})
+      : _persistence = persistence;
+
+  final SettingsPersistence? _persistence;
+
   ThemeMode _themeMode = ThemeMode.dark;
   TerminalPalette _palette = TerminalPalette.midnight;
   double _fontSize = 13;
+  bool _hydrating = false;
 
   ThemeMode get themeMode => _themeMode;
   TerminalPalette get palette => _palette;
   double get fontSize => _fontSize;
+
+  Future<void> load() async {
+    final persistence = _persistence;
+    if (persistence == null) {
+      return;
+    }
+
+    _hydrating = true;
+    final snapshot = await persistence.read();
+    if (snapshot != null) {
+      _themeMode = _parseThemeMode(snapshot.themeMode) ?? ThemeMode.dark;
+      _palette = _parsePalette(snapshot.palette) ?? TerminalPalette.midnight;
+      _fontSize = snapshot.fontSize.clamp(11, 20).toDouble();
+      notifyListeners();
+    }
+    _hydrating = false;
+  }
 
   void setThemeMode(ThemeMode value) {
     if (_themeMode == value) {
@@ -22,6 +48,7 @@ class SettingsController extends ChangeNotifier {
     }
     _themeMode = value;
     notifyListeners();
+    _schedulePersist();
   }
 
   void setPalette(TerminalPalette value) {
@@ -30,6 +57,7 @@ class SettingsController extends ChangeNotifier {
     }
     _palette = value;
     notifyListeners();
+    _schedulePersist();
   }
 
   void setFontSize(double value) {
@@ -39,6 +67,7 @@ class SettingsController extends ChangeNotifier {
     }
     _fontSize = normalized;
     notifyListeners();
+    _schedulePersist();
   }
 
   TerminalTheme get terminalTheme {
@@ -70,6 +99,46 @@ class SettingsController extends ChangeNotifier {
     TerminalPalette.daylight: 'Daylight Paper',
     TerminalPalette.matrix: 'Matrix Green',
   };
+
+  void _schedulePersist() {
+    if (_hydrating) {
+      return;
+    }
+    unawaited(_persist());
+  }
+
+  Future<void> _persist() async {
+    final persistence = _persistence;
+    if (persistence == null) {
+      return;
+    }
+
+    await persistence.write(
+      SettingsSnapshot(
+        themeMode: _themeMode.name,
+        palette: _palette.name,
+        fontSize: _fontSize,
+      ),
+    );
+  }
+
+  ThemeMode? _parseThemeMode(String value) {
+    for (final mode in ThemeMode.values) {
+      if (mode.name == value) {
+        return mode;
+      }
+    }
+    return null;
+  }
+
+  TerminalPalette? _parsePalette(String value) {
+    for (final palette in TerminalPalette.values) {
+      if (palette.name == value) {
+        return palette;
+      }
+    }
+    return null;
+  }
 }
 
 const _midnightTheme = TerminalTheme(

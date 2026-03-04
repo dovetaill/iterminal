@@ -1,19 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:iterminal/state/profile_controller.dart';
 import 'package:iterminal/state/settings_controller.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     required this.settings,
+    required this.profiles,
   });
 
   final SettingsController settings;
+  final ProfileController profiles;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  late final TextEditingController _accountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _accountController =
+        TextEditingController(text: widget.profiles.accountName ?? '');
+  }
+
+  @override
+  void dispose() {
+    _accountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveAccountName() async {
+    await widget.profiles.setAccountName(_accountController.text);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Vault account updated')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: settings,
+      animation: Listenable.merge([widget.settings, widget.profiles]),
       builder: (context, _) {
+        final settings = widget.settings;
+        final profiles = widget.profiles;
+        final profileCount = profiles.profiles.length;
+        final snippetCount = profiles.snippets.length;
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Settings'),
@@ -27,7 +65,8 @@ class SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<ThemeMode>(
-                value: settings.themeMode,
+                key: ValueKey<ThemeMode>(settings.themeMode),
+                initialValue: settings.themeMode,
                 decoration: const InputDecoration(
                   labelText: 'App Theme Mode',
                   border: OutlineInputBorder(),
@@ -54,7 +93,8 @@ class SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<TerminalPalette>(
-                value: settings.palette,
+                key: ValueKey<TerminalPalette>(settings.palette),
+                initialValue: settings.palette,
                 decoration: const InputDecoration(
                   labelText: 'Terminal Palette',
                   border: OutlineInputBorder(),
@@ -89,14 +129,48 @@ class SettingsPage extends StatelessWidget {
                 onChanged: settings.setFontSize,
               ),
               const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text(
+                'Android Vault',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _accountController,
+                decoration: const InputDecoration(
+                  labelText: 'Local Account Name',
+                  hintText: 'e.g. dev@mobile',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  FilledButton(
+                    onPressed: _saveAccountName,
+                    child: const Text('Save Account'),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    profiles.saving ? 'Syncing encrypted vault...' : 'Ready',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 ),
-                child: const Text(
-                  'MVP 范围内设置仅保存在内存。\n后续 Android 阶段会接入本地加密存储与账户体系。',
+                child: Text(
+                  'Connections: $profileCount\n'
+                  'Snippets: $snippetCount\n'
+                  'Storage: Local encrypted vault (device secure store + AES-GCM payload)',
                 ),
               ),
             ],

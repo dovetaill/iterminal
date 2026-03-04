@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:iterminal/models/sftp_entry.dart';
 import 'package:iterminal/models/ssh_profile.dart';
 import 'package:iterminal/models/terminal_session.dart';
 import 'package:iterminal/services/ssh_connection.dart';
@@ -105,7 +108,8 @@ SSHProfile _profile(String host) {
 }
 
 class _FakeConnection implements SshConnectionAdapter {
-  _FakeConnection({required this.profile, this.sampleStdout = 'hello from fake'});
+  _FakeConnection(
+      {required this.profile, this.sampleStdout = 'hello from fake'});
 
   final SSHProfile profile;
   final String sampleStdout;
@@ -132,6 +136,16 @@ class _FakeConnection implements SshConnectionAdapter {
   }
 
   @override
+  Future<List<SftpEntry>> listDirectory(String path) async {
+    return const [];
+  }
+
+  @override
+  Future<Uint8List> readFileBytes(String path, {int maxBytes = 32768}) async {
+    return Uint8List.fromList(const []);
+  }
+
+  @override
   void resize(
     int width,
     int height, {
@@ -143,6 +157,15 @@ class _FakeConnection implements SshConnectionAdapter {
 
   @override
   void write(String data) {
+    // no-op
+  }
+
+  @override
+  Future<void> writeFileBytes(
+    String path,
+    Uint8List data, {
+    bool truncate = true,
+  }) async {
     // no-op
   }
 }

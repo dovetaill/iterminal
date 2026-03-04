@@ -1,7 +1,9 @@
 import 'dart:math';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:iterminal/models/sftp_entry.dart';
 import 'package:iterminal/models/ssh_profile.dart';
 import 'package:iterminal/models/terminal_session.dart';
 import 'package:iterminal/services/ssh_connection.dart';
@@ -83,7 +85,8 @@ class SessionController extends ChangeNotifier {
     _sessions.add(session);
     _activeIndex = _sessions.length - 1;
 
-    _writeSystemLine(session, '==> Connecting to ${profile.username}@${profile.host}:${profile.port}');
+    _writeSystemLine(session,
+        '==> Connecting to ${profile.username}@${profile.host}:${profile.port}');
 
     _ensureSecondaryIndex();
     notifyListeners();
@@ -322,10 +325,53 @@ class SessionController extends ChangeNotifier {
     session.terminal.paste(text);
   }
 
+  Future<List<SftpEntry>> listDirectory(String path,
+      {String? sessionId}) async {
+    final pair = _resolveSessionAndConnection(sessionId: sessionId);
+    return await pair.connection.listDirectory(path);
+  }
+
+  Future<String> readRemoteTextFile(
+    String path, {
+    String? sessionId,
+    int maxBytes = 32768,
+  }) async {
+    final pair = _resolveSessionAndConnection(sessionId: sessionId);
+    final bytes = await pair.connection.readFileBytes(path, maxBytes: maxBytes);
+    return utf8.decode(bytes, allowMalformed: true);
+  }
+
+  Future<void> writeRemoteTextFile(
+    String path,
+    String content, {
+    String? sessionId,
+    bool truncate = true,
+  }) async {
+    final pair = _resolveSessionAndConnection(sessionId: sessionId);
+    final bytes = Uint8List.fromList(utf8.encode(content));
+    await pair.connection.writeFileBytes(path, bytes, truncate: truncate);
+  }
+
   void _writeSystemLine(TerminalSession session, String message) {
     final line = '$message\r\n';
     session.terminal.write(line);
     session.appendOutput(line);
+  }
+
+  _SessionConnectionPair _resolveSessionAndConnection({String? sessionId}) {
+    final session = sessionId == null
+        ? activeSession
+        : _sessions.firstWhere((item) => item.id == sessionId);
+    if (session == null) {
+      throw StateError('No active session');
+    }
+
+    final connection = _connections[session.id];
+    if (connection == null) {
+      throw StateError('Session connection not found');
+    }
+
+    return _SessionConnectionPair(connection: connection);
   }
 
   void _ensureSecondaryIndex() {
@@ -381,4 +427,12 @@ class SessionController extends ChangeNotifier {
         return TerminalTargetPlatform.windows;
     }
   }
+}
+
+class _SessionConnectionPair {
+  const _SessionConnectionPair({
+    required this.connection,
+  });
+
+  final SshConnectionAdapter connection;
 }
